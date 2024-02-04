@@ -1,7 +1,5 @@
 self: super: with self.lib; let
-
-  pythonOverridesFor = prevPython: prevPython // {
-    pkgs = prevPython.pkgs.overrideScope (pyFinal: pyPrev: {
+  rosPythonPackageOverrides = pyFinal: pyPrev: {
       bson = pyFinal.callPackage ./bson { };
 
       catkin-pkg = pyFinal.callPackage ./catkin-pkg { };
@@ -69,8 +67,15 @@ self: super: with self.lib; let
       rosinstall-generator = pyFinal.callPackage ./rosinstall-generator { };
 
       rospkg = pyFinal.callPackage ./rospkg { };
-    });
   };
+
+  pythonOverrides = old: {
+    packageOverrides = self.lib.composeManyExtensions
+      ((if old ? packageOverrides then [ old.packageOverrides ] else [ ]) ++ [ rosPythonPackageOverrides ]);
+  };
+
+  pythonOverridesFor = prevPython: prevPython.override pythonOverrides;
+
 in {
   cargo-ament-build = self.callPackage ./cargo-ament-build { };
 

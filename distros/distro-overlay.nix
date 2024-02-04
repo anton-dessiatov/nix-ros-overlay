@@ -1,13 +1,13 @@
 { version, distro, python }:
 self: super:
 let
-  pythonOverridesFor = with self.lib; prevPython: prevPython // {
-    pkgs = prevPython.pkgs.overrideScope (pyFinal: pyPrev: {
-      wxPython = pyFinal.wxPython_4_2;
+  wxPythonOverride = pyFinal: pyPrev: self.lib.optionalAttrs pyPrev.isPy3k {
+    wxPython = pyFinal.wxPython_4_2;
+  };
 
-      # ROS is not compatible with empy 4
-      empy = pyFinal.empy_3;
-    });
+  pythonOverrides = old: with self.lib; {
+    packageOverrides = composeManyExtensions
+      ((if old ? packageOverrides then [ old.packageOverrides ] else [ ]) ++ [ wxPythonOverride ]);
   };
 
   base = rosSelf: rosSuper: {
@@ -25,10 +25,12 @@ let
       inherit (self) buildEnv;
     };
 
-    python = pythonOverridesFor python;
-    pythonPackages = rosSelf.python.pkgs;
+    # python = super.python3.override pythonOverrides;
+    # pythonPackages = rosSelf.python.pkgs;
 
-    python3 = pythonOverridesFor self.python3;
+    python = python.override pythonOverrides;
+    pythonPackages = rosSelf.python.pkgs;
+    python3 = self.python3.override pythonOverrides;
     python3Packages = rosSelf.python3.pkgs;
 
     boost = self.boost.override {
@@ -246,7 +248,7 @@ let
         wrapQtApp "$out/lib/rqt_plot/rqt_plot"
       '';
     });
-    
+
     rqt-publisher = rosSuper.rqt-publisher.overrideAttrs ({
       nativeBuildInputs ? [], postFixup ? "", ...
     }: {
